@@ -487,10 +487,14 @@
     }
 
     function base1D() {
+      const marginX = canvas.width * 0.18;
+      const marginY = canvas.height * 0.25;
+
       return {
-        centerX: canvas.width / 2,
-        centerY: canvas.height / 2 + 20,
-        length: 610,
+        startX: marginX,
+        startY: canvas.height - marginY,
+        endX: canvas.width - marginX,
+        endY: marginY,
         thickness: 18
       };
     }
@@ -639,12 +643,21 @@
 
     function current1DLine() {
       const b = base1D();
-      const length = b.length * getState().scale;
+
+      const baseMidX = (b.startX + b.endX) / 2;
+      const baseMidY = (b.startY + b.endY) / 2;
+      const baseDx = b.endX - b.startX;
+      const baseDy = b.endY - b.startY;
+
+      const scaledDx = baseDx * getState().scale;
+      const scaledDy = baseDy * getState().scale;
+
       return {
-        x1: b.centerX - length / 2,
-        x2: b.centerX + length / 2,
-        y: b.centerY,
-        length,
+        x1: baseMidX - scaledDx / 2,
+        y1: baseMidY - scaledDy / 2,
+        x2: baseMidX + scaledDx / 2,
+        y2: baseMidY + scaledDy / 2,
+        length: Math.hypot(scaledDx, scaledDy),
         thickness: b.thickness
       };
     }
@@ -662,8 +675,8 @@
       if (currentMode === "1d") {
         const line = current1DLine();
         return {
-          x: line.x1 + galaxy.fraction * line.length,
-          y: line.y
+          x: line.x1 + galaxy.fraction * (line.x2 - line.x1),
+          y: line.y1 + galaxy.fraction * (line.y2 - line.y1)
         };
       }
 
@@ -696,27 +709,32 @@
 
     function draw1DUniverse() {
       const line = current1DLine();
+      const dx = line.x2 - line.x1;
+      const dy = line.y2 - line.y1;
+      const len = Math.hypot(dx, dy);
+      const nx = -dy / len;
+      const ny = dx / len;
 
       ctx.save();
       ctx.lineCap = "round";
       ctx.strokeStyle = "#141414";
       ctx.lineWidth = line.thickness;
       ctx.beginPath();
-      ctx.moveTo(line.x1, line.y);
-      ctx.lineTo(line.x2, line.y);
+      ctx.moveTo(line.x1, line.y1);
+      ctx.lineTo(line.x2, line.y2);
       ctx.stroke();
 
       ctx.strokeStyle = "rgba(255,255,255,0.25)";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(line.x1 + 12, line.y - 4);
-      ctx.lineTo(line.x2 - 12, line.y - 4);
+      ctx.moveTo(line.x1 + nx * 4, line.y1 + ny * 4);
+      ctx.lineTo(line.x2 + nx * 4, line.y2 + ny * 4);
       ctx.stroke();
 
       ctx.fillStyle = "#111";
       ctx.font = "700 14px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText("stretchable space", (line.x1 + line.x2) / 2, line.y + 48);
+      ctx.fillText("stretchable space", (line.x1 + line.x2) / 2, (line.y1 + line.y2) / 2 + 48);
       ctx.restore();
     }
 
@@ -847,9 +865,16 @@
 
     function canPlace1D(point) {
       const line = current1DLine();
-      const nearLine = Math.abs(point.y - line.y) <= 58;
-      const withinX = point.x >= line.x1 && point.x <= line.x2;
-      return nearLine && withinX;
+      const dx = line.x2 - line.x1;
+      const dy = line.y2 - line.y1;
+      const lenSq = dx * dx + dy * dy;
+
+      const t = ((point.x - line.x1) * dx + (point.y - line.y1) * dy) / lenSq;
+      const closestX = line.x1 + t * dx;
+      const closestY = line.y1 + t * dy;
+      const distanceToLine = Math.hypot(point.x - closestX, point.y - closestY);
+
+      return t >= 0 && t <= 1 && distanceToLine <= 58;
     }
 
     function canPlace2D(point) {
@@ -871,7 +896,10 @@
         }
 
         const line = current1DLine();
-        const fraction = (point.x - line.x1) / line.length;
+        const dx = line.x2 - line.x1;
+        const dy = line.y2 - line.y1;
+        const lenSq = dx * dx + dy * dy;
+        const fraction = ((point.x - line.x1) * dx + (point.y - line.y1) * dy) / lenSq;
 
         state.galaxies.push({
           name,
