@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Expanding Universe Simulation</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #5d6a7c;
+      --accent: #2d6cdf;
+      --accent-dark: #1d4fa7;
+      --warning: #f59e0b;
+      --space: #111111;
+      --galaxy-yellow: #ffd43b;
+      --galaxy-orange: #ff8c1a;
+      --line: #202020;
+      --measure: #e11d48;
+      --success: #15803d;
+      --shadow: 0 10px 25px rgba(0,0,0,0.12);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 55%, #dfe8f5 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 18px 22px 12px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3vw, 2.3rem);
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 6px auto 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.35;
+    }
+
+    .app {
+      width: min(1220px, calc(100vw - 24px));
+      margin: 0 auto 22px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.94);
+      border: 1px solid rgba(23,32,51,0.12);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .control-block {
+      padding: 12px;
+      border: 1px solid rgba(23,32,51,0.10);
+      border-radius: 14px;
+      background: #fbfdff;
+    }
+
+    .control-block h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .mode-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    button, select, input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 11px;
+      background: #e8eef8;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(0,0,0,0.12);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    button.primary:hover {
+      background: var(--accent-dark);
+    }
+
+    button.mode-active {
+      background: var(--ink);
+      color: white;
+    }
+
+    button.warn {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    button.good {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+    }
+
+    select {
+      border: 1px solid rgba(23,32,51,0.18);
+      border-radius: 10px;
+      padding: 9px;
+      background: white;
+      color: var(--ink);
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+
+    .small-note {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.3;
+      margin-top: 7px;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .row > * {
+      flex: 1;
+    }
+
+    .status {
+      min-height: 44px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #eef5ff;
+      color: #173b71;
+      font-size: 0.92rem;
+      line-height: 1.28;
+      border: 1px solid rgba(45,108,223,0.18);
+    }
+
+    .measurement-readout {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #fff7ed;
+      border: 1px solid rgba(245,158,11,0.35);
+      color: #7c2d12;
+      font-weight: 700;
+      min-height: 42px;
+      line-height: 1.25;
+    }
+
+    .stage-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stage-toolbar {
+      position: absolute;
+      z-index: 5;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .badge {
+      background: rgba(255,255,255,0.88);
+      border: 1px solid rgba(23,32,51,0.14);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: var(--muted);
+      font-weight: 750;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      pointer-events: auto;
+    }
+
+    canvas {
+      width: 100%;
+      height: 660px;
+      display: block;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(rgba(16,24,40,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16,24,40,0.03) 1px, transparent 1px),
+        #ffffff;
+      background-size: 40px 40px;
+      cursor: crosshair;
+    }
+
+    .galaxy-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 8px;
+      max-height: 150px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .galaxy-pill {
+      border-radius: 999px;
+      padding: 6px 8px;
+      background: #fff3bf;
+      border: 1px solid rgba(245,158,11,0.35);
+      color: #7c2d12;
+      font-size: 0.8rem;
+      font-weight: 750;
+      text-align: center;
+    }
+
+    .galaxy-pill.used {
+      background: #e5e7eb;
+      color: #6b7280;
+      border-color: #d1d5db;
+      text-decoration: line-through;
+    }
+
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .sample-line {
+      width: 38px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--line);
+    }
+
+    .sample-galaxy {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 32%, #fff8a8 0 12%, var(--galaxy-yellow) 19%, var(--galaxy-orange) 70%, #c2410c 100%);
+      box-shadow: 0 0 10px rgba(255,140,26,0.75);
+    }
+
+    .sample-measure {
+      width: 38px;
+      height: 4px;
+      background: var(--measure);
+      border-radius: 999px;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      canvas {
+        height: 560px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Expanding Universe Simulation</h1>
+    <p class="subtitle">
+      Add named galaxies to a one-dimensional bungee universe or a two-dimensional space universe.
+      Then stretch space and measure how distances change.
+    </p>
+  </header>
+
+  <main class="app">
+    <section class="panel controls">
+      <div class="control-block">
+        <h2>Universe Type</h2>
+        <div class="mode-toggle">
+          <button id="mode1d" class="mode-active">1D Bungee</button>
+          <button id="mode2d">2D Space</button>
+        </div>
+        <p class="small-note" id="modeHelp">
+          1D mode: galaxies snap onto the black bungee line.
+        </p>
+      </div>
+
+      <div class="control-block">
+        <h2>Add Galaxies</h2>
+        <label for="galaxySelect">Choose a galaxy tag</label>
+        <select id="galaxySelect"></select>
+        <div class="row" style="margin-top:8px;">
+          <button id="addGalaxy" class="primary">Place Selected Galaxy</button>
+          <button id="autoPlace" class="good">Auto Place 5</button>
+        </div>
+        <p class="small-note">
+          Click the bungee line or the black space circle after pressing “Place Selected Galaxy.”
+        </p>
+        <div class="galaxy-list" id="galaxyList"></div>
+      </div>
+
+      <div class="control-block">
+        <h2>Stretch Space</h2>
+        <label for="stretchSlider">Stretch amount: <span id="stretchLabel">65%</span></label>
+        <input id="stretchSlider" type="range" min="50" max="80" value="65" />
+        <div class="row" style="margin-top:8px;">
+          <button id="stretchBtn" class="primary">Apply Stretch</button>
+          <button id="undoStretch">Undo Stretch</button>
+        </div>
+        <p class="small-note">
+          Stretch makes the universe larger. Galaxies stay attached to their part of space, so distances increase.
+        </p>
+      </div>
+
+      <div class="control-block">
+        <h2>Measure Distance</h2>
+        <label for="measureA">Galaxy A</label>
+        <select id="measureA"></select>
+        <label for="measureB" style="margin-top:8px;">Galaxy B</label>
+        <select id="measureB"></select>
+        <div class="row" style="margin-top:8px;">
+          <button id="measureBtn" class="primary">Measure</button>
+          <button id="clearMeasure">Clear</button>
+        </div>
+        <div class="measurement-readout" id="measurementReadout" style="margin-top:10px;">
+          Add at least two galaxies to measure.
+        </div>
+      </div>
+
+      <div class="control-block">
+        <h2>Reset</h2>
+        <div class="row">
+          <button id="resetMode" class="warn">Reset This Mode</button>
+          <button id="resetAll" class="warn">Reset All</button>
+        </div>
+      </div>
+
+      <div class="control-block legend">
+        <h2>Key</h2>
+        <div class="legend-item"><span class="sample-line"></span> stretchable space</div>
+        <div class="legend-item"><span class="sample-galaxy"></span> distant galaxy tag</div>
+        <div class="legend-item"><span class="sample-measure"></span> distance measurement</div>
+      </div>
+
+      <div class="status" id="status">
+        Choose a galaxy tag, press “Place Selected Galaxy,” then click on the universe.
+      </div>
+    </section>
+
+    <section class="panel stage-wrap">
+      <div class="stage-toolbar">
+        <div class="badge" id="scaleBadge">Universe scale: 1.00×</div>
+        <div class="badge" id="countBadge">Galaxies: 0</div>
+      </div>
+      <canvas id="universeCanvas" width="1100" height="660"></canvas>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("universeCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const mode1dBtn = document.getElementById("mode1d");
+    const mode2dBtn = document.getElementById("mode2d");
+    const modeHelp = document.getElementById("modeHelp");
+
+    const galaxySelect = document.getElementById("galaxySelect");
+    const addGalaxyBtn = document.getElementById("addGalaxy");
+    const autoPlaceBtn = document.getElementById("autoPlace");
+    const galaxyList = document.getElementById("galaxyList");
+
+    const stretchSlider = document.getElementById("stretchSlider");
+    const stretchLabel = document.getElementById("stretchLabel");
+    const stretchBtn = document.getElementById("stretchBtn");
+    const undoStretchBtn = document.getElementById("undoStretch");
+
+    const measureA = document.getElementById("measureA");
+    const measureB = document.getElementById("measureB");
+    const measureBtn = document.getElementById("measureBtn");
+    const clearMeasureBtn = document.getElementById("clearMeasure");
+    const measurementReadout = document.getElementById("measurementReadout");
+
+    const resetModeBtn = document.getElementById("resetMode");
+    const resetAllBtn = document.getElementById("resetAll");
+
+    const statusBox = document.getElementById("status");
+    const scaleBadge = document.getElementById("scaleBadge");
+    const countBadge = document.getElementById("countBadge");
+
+    const galaxyNames = [
+      "Andromeda",
+      "Milky Way",
+      "Triangulum",
+      "Whirlpool",
+      "Sombrero",
+      "Pinwheel",
+      "Cartwheel",
+      "Black Eye",
+      "Cigar",
+      "Tadpole",
+      "Sunflower",
+      "Sculptor"
+    ];
+
+    let currentMode = "1d";
+    let placing = false;
+    let selectedMeasurement = null;
+
+    const states = {
+      "1d": {
+        scale: 1,
+        history: [],
+        galaxies: []
+      },
+      "2d": {
+        scale: 1,
+        history: [],
+        galaxies: []
+      }
+    };
+
+    function getState() {
+      return states[currentMode];
+    }
+
+    function base1D() {
+      return {
+        centerX: canvas.width / 2,
+        centerY: canvas.height / 2 + 20,
+        length: 610,
+        thickness: 18
+      };
+    }
+
+    function base2D() {
+      return {
+        centerX: canvas.width / 2,
+        centerY: canvas.height / 2 + 20,
+        radius: 205
+      };
+    }
+
+    function setStatus(text) {
+      statusBox.textContent = text;
+    }
+
+    function resizeCanvasForDisplay() {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      const newWidth = Math.round(rect.width * ratio);
+      const newHeight = Math.round(rect.height * ratio);
+
+      if (canvas.width !== newWidth || canvas.height !== newHeight) {
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+    }
+
+    function getCanvasPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      return {
+        x: (event.clientX - rect.left) * scaleX,
+        y: (event.clientY - rect.top) * scaleY
+      };
+    }
+
+    function usedNames() {
+      return new Set(getState().galaxies.map(g => g.name));
+    }
+
+    function availableNames() {
+      const used = usedNames();
+      return galaxyNames.filter(name => !used.has(name));
+    }
+
+    function updateGalaxySelect() {
+      const available = availableNames();
+      galaxySelect.innerHTML = "";
+
+      if (available.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "All galaxy tags placed";
+        galaxySelect.appendChild(opt);
+        galaxySelect.disabled = true;
+        addGalaxyBtn.disabled = true;
+      } else {
+        galaxySelect.disabled = false;
+        addGalaxyBtn.disabled = false;
+        available.forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          galaxySelect.appendChild(opt);
+        });
+      }
+    }
+
+    function updateGalaxyList() {
+      const used = usedNames();
+      galaxyList.innerHTML = "";
+
+      galaxyNames.forEach(name => {
+        const div = document.createElement("div");
+        div.className = "galaxy-pill" + (used.has(name) ? " used" : "");
+        div.textContent = name;
+        galaxyList.appendChild(div);
+      });
+    }
+
+    function updateMeasureDropdowns() {
+      const galaxies = getState().galaxies;
+      [measureA, measureB].forEach(select => {
+        const oldValue = select.value;
+        select.innerHTML = "";
+
+        if (galaxies.length === 0) {
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "No galaxies yet";
+          select.appendChild(opt);
+          select.disabled = true;
+        } else {
+          select.disabled = false;
+          galaxies.forEach(galaxy => {
+            const opt = document.createElement("option");
+            opt.value = galaxy.name;
+            opt.textContent = galaxy.name;
+            select.appendChild(opt);
+          });
+          if (galaxies.some(g => g.name === oldValue)) {
+            select.value = oldValue;
+          }
+        }
+      });
+
+      if (galaxies.length >= 2 && measureA.value === measureB.value) {
+        measureB.selectedIndex = 1;
+      }
+
+      measureBtn.disabled = galaxies.length < 2;
+    }
+
+    function updateBadges() {
+      const state = getState();
+      scaleBadge.textContent = `Universe scale: ${state.scale.toFixed(2)}×`;
+      countBadge.textContent = `Galaxies: ${state.galaxies.length}`;
+    }
+
+    function updateUI() {
+      mode1dBtn.classList.toggle("mode-active", currentMode === "1d");
+      mode2dBtn.classList.toggle("mode-active", currentMode === "2d");
+
+      modeHelp.textContent = currentMode === "1d"
+        ? "1D mode: galaxies snap onto the black bungee line."
+        : "2D mode: galaxies attach to locations on the black space circle.";
+
+      updateGalaxySelect();
+      updateGalaxyList();
+      updateMeasureDropdowns();
+      updateBadges();
+
+      if (getState().galaxies.length < 2) {
+        measurementReadout.textContent = "Add at least two galaxies to measure.";
+      }
+
+      undoStretchBtn.disabled = getState().history.length === 0;
+      autoPlaceBtn.disabled = availableNames().length === 0;
+
+      draw();
+    }
+
+    function current1DLine() {
+      const b = base1D();
+      const length = b.length * getState().scale;
+      return {
+        x1: b.centerX - length / 2,
+        x2: b.centerX + length / 2,
+        y: b.centerY,
+        length,
+        thickness: b.thickness
+      };
+    }
+
+    function current2DCircle() {
+      const b = base2D();
+      return {
+        cx: b.centerX,
+        cy: b.centerY,
+        r: b.radius * getState().scale
+      };
+    }
+
+    function positionOf(galaxy) {
+      if (currentMode === "1d") {
+        const line = current1DLine();
+        return {
+          x: line.x1 + galaxy.fraction * line.length,
+          y: line.y
+        };
+      }
+
+      const circle = current2DCircle();
+      return {
+        x: circle.cx + galaxy.nx * circle.r,
+        y: circle.cy + galaxy.ny * circle.r
+      };
+    }
+
+    function findGalaxy(name) {
+      return getState().galaxies.find(g => g.name === name);
+    }
+
+    function drawBackgroundHints() {
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = "#5d6a7c";
+      ctx.font = "700 16px system-ui";
+      ctx.textAlign = "center";
+
+      if (currentMode === "1d") {
+        ctx.fillText("1D bungee universe", canvas.width / 2, 72);
+      } else {
+        ctx.fillText("2D space universe", canvas.width / 2, 72);
+      }
+
+      ctx.restore();
+    }
+
+    function draw1DUniverse() {
+      const line = current1DLine();
+
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#141414";
+      ctx.lineWidth = line.thickness;
+      ctx.beginPath();
+      ctx.moveTo(line.x1, line.y);
+      ctx.lineTo(line.x2, line.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(line.x1 + 12, line.y - 4);
+      ctx.lineTo(line.x2 - 12, line.y - 4);
+      ctx.stroke();
+
+      ctx.fillStyle = "#111";
+      ctx.font = "700 14px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("stretchable space", (line.x1 + line.x2) / 2, line.y + 48);
+      ctx.restore();
+    }
+
+    function draw2DUniverse() {
+      const circle = current2DCircle();
+
+      ctx.save();
+      ctx.fillStyle = "#111111";
+      ctx.beginPath();
+      ctx.arc(circle.cx, circle.cy, circle.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.22)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(circle.cx, circle.cy, Math.max(12, circle.r - 16), 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.arc(circle.cx, circle.cy, circle.r * i / 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.font = "700 14px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("stretchable 2D space", circle.cx, circle.cy + circle.r + 35);
+      ctx.restore();
+    }
+
+    function drawGalaxy(galaxy) {
+      const p = positionOf(galaxy);
+      const radius = 15;
+
+      ctx.save();
+
+      const gradient = ctx.createRadialGradient(p.x - 5, p.y - 6, 2, p.x, p.y, radius + 2);
+      gradient.addColorStop(0, "#fff9b1");
+      gradient.addColorStop(0.22, "#ffd43b");
+      gradient.addColorStop(0.67, "#ff8c1a");
+      gradient.addColorStop(1, "#b45309");
+
+      ctx.shadowColor = "rgba(255, 140, 26, 0.85)";
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(124,45,18,0.65)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = currentMode === "2d" ? "white" : "#111827";
+      ctx.strokeStyle = currentMode === "2d" ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.9)";
+      ctx.lineWidth = 4;
+      ctx.font = "800 13px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      const labelY = currentMode === "1d" ? p.y + 22 : p.y + 19;
+      ctx.strokeText(galaxy.name, p.x, labelY);
+      ctx.fillText(galaxy.name, p.x, labelY);
+
+      ctx.restore();
+    }
+
+    function drawMeasurement() {
+      if (!selectedMeasurement) return;
+
+      const gA = findGalaxy(selectedMeasurement.a);
+      const gB = findGalaxy(selectedMeasurement.b);
+      if (!gA || !gB) return;
+
+      const a = positionOf(gA);
+      const b = positionOf(gB);
+
+      ctx.save();
+      ctx.strokeStyle = "#e11d48";
+      ctx.fillStyle = "#e11d48";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 7]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      [a, b].forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      const dist = distanceBetween(gA, gB);
+
+      ctx.font = "900 16px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "white";
+      ctx.strokeText(`${dist.toFixed(1)} space units`, midX, midY - 18);
+      ctx.fillText(`${dist.toFixed(1)} space units`, midX, midY - 18);
+
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackgroundHints();
+
+      if (currentMode === "1d") {
+        draw1DUniverse();
+      } else {
+        draw2DUniverse();
+      }
+
+      drawMeasurement();
+
+      getState().galaxies.forEach(drawGalaxy);
+    }
+
+    function canPlace1D(point) {
+      const line = current1DLine();
+      const nearLine = Math.abs(point.y - line.y) <= 58;
+      const withinX = point.x >= line.x1 && point.x <= line.x2;
+      return nearLine && withinX;
+    }
+
+    function canPlace2D(point) {
+      const circle = current2DCircle();
+      const dx = point.x - circle.cx;
+      const dy = point.y - circle.cy;
+      return Math.sqrt(dx * dx + dy * dy) <= circle.r - 20;
+    }
+
+    function addGalaxyAt(name, point) {
+      const state = getState();
+
+      if (!name || state.galaxies.some(g => g.name === name)) return false;
+
+      if (currentMode === "1d") {
+        if (!canPlace1D(point)) {
+          setStatus("Click closer to the black bungee line to attach the galaxy tag.");
+          return false;
+        }
+
+        const line = current1DLine();
+        const fraction = (point.x - line.x1) / line.length;
+
+        state.galaxies.push({
+          name,
+          fraction: clamp(fraction, 0.02, 0.98)
+        });
+      } else {
+        if (!canPlace2D(point)) {
+          setStatus("Click inside the black space circle to attach the galaxy tag.");
+          return false;
+        }
+
+        const circle = current2DCircle();
+        const nx = (point.x - circle.cx) / circle.r;
+        const ny = (point.y - circle.cy) / circle.r;
+
+        state.galaxies.push({
+          name,
+          nx,
+          ny
+        });
+      }
+
+      placing = false;
+      selectedMeasurement = null;
+      setStatus(`${name} was added. Add more galaxies, stretch space, or measure a distance.`);
+      updateUI();
+      return true;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function distanceBetween(gA, gB) {
+      const a = positionOf(gA);
+      const b = positionOf(gB);
+      const pixelDistance = Math.hypot(a.x - b.x, a.y - b.y);
+      return pixelDistance / 10;
+    }
+
+    function makeMeasurement() {
+      if (measureA.value === measureB.value) {
+        measurementReadout.textContent = "Choose two different galaxies.";
+        return;
+      }
+
+      const gA = findGalaxy(measureA.value);
+      const gB = findGalaxy(measureB.value);
+
+      if (!gA || !gB) {
+        measurementReadout.textContent = "Add at least two galaxies to measure.";
+        return;
+      }
+
+      selectedMeasurement = {
+        a: gA.name,
+        b: gB.name
+      };
+
+      const dist = distanceBetween(gA, gB);
+      measurementReadout.textContent = `${gA.name} to ${gB.name}: ${dist.toFixed(1)} space units at ${getState().scale.toFixed(2)}× scale.`;
+      draw();
+    }
+
+    function applyStretch() {
+      const state = getState();
+      const stretchFactor = 1 + Number(stretchSlider.value) / 100;
+
+      state.history.push({
+        scale: state.scale,
+        galaxies: JSON.parse(JSON.stringify(state.galaxies))
+      });
+
+      state.scale *= stretchFactor;
+
+      if (currentMode === "2d") {
+        state.galaxies.forEach(g => {
+          const newDistance = Math.hypot(g.nx, g.ny);
+          if (newDistance > 0.97) {
+            const factor = 0.97 / newDistance;
+            g.nx *= factor;
+            g.ny *= factor;
+          }
+        });
+      }
+
+      setStatus(`Space stretched by ${stretchSlider.value}%. Distances between galaxies are now larger.`);
+      updateUI();
+
+      if (selectedMeasurement) {
+        makeMeasurement();
+      }
+    }
+
+    function undoStretch() {
+      const state = getState();
+      const last = state.history.pop();
+      if (!last) return;
+
+      state.scale = last.scale;
+      state.galaxies = last.galaxies;
+      setStatus("Last stretch undone.");
+      updateUI();
+
+      if (selectedMeasurement) {
+        makeMeasurement();
+      }
+    }
+
+    function autoPlaceSome() {
+      const available = availableNames();
+      const namesToAdd = available.slice(0, Math.min(5, available.length));
+      const state = getState();
+
+      if (currentMode === "1d") {
+        const existingFractions = state.galaxies.map(g => g.fraction);
+        namesToAdd.forEach((name, i) => {
+          const base = (i + 1) / (namesToAdd.length + 1);
+          let fraction = clamp(base + (Math.random() - 0.5) * 0.09, 0.05, 0.95);
+
+          while (existingFractions.some(f => Math.abs(f - fraction) < 0.06)) {
+            fraction = clamp(fraction + 0.08, 0.05, 0.95);
+          }
+
+          existingFractions.push(fraction);
+          state.galaxies.push({ name, fraction });
+        });
+      } else {
+        namesToAdd.forEach((name, i) => {
+          const angle = (Math.PI * 2 * i / namesToAdd.length) + Math.random() * 0.55;
+          const radius = 0.22 + Math.random() * 0.62;
+          state.galaxies.push({
+            name,
+            nx: Math.cos(angle) * radius,
+            ny: Math.sin(angle) * radius
+          });
+        });
+      }
+
+      selectedMeasurement = null;
+      setStatus(`${namesToAdd.length} galaxy tags were placed automatically.`);
+      updateUI();
+    }
+
+    function resetMode() {
+      states[currentMode] = {
+        scale: 1,
+        history: [],
+        galaxies: []
+      };
+      selectedMeasurement = null;
+      placing = false;
+      setStatus(`${currentMode === "1d" ? "1D bungee" : "2D space"} mode reset.`);
+      updateUI();
+    }
+
+    function resetAll() {
+      states["1d"] = { scale: 1, history: [], galaxies: [] };
+      states["2d"] = { scale: 1, history: [], galaxies: [] };
+      selectedMeasurement = null;
+      placing = false;
+      setStatus("Both universe modes were reset.");
+      updateUI();
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      placing = false;
+      selectedMeasurement = null;
+      setStatus(
+        mode === "1d"
+          ? "1D bungee mode. Place galaxies on the black line."
+          : "2D space mode. Place galaxies inside the black circle."
+      );
+      updateUI();
+    }
+
+    addGalaxyBtn.addEventListener("click", () => {
+      if (!galaxySelect.value) return;
+      placing = true;
+      setStatus(`Click the ${currentMode === "1d" ? "black bungee line" : "black space circle"} to place ${galaxySelect.value}.`);
+    });
+
+    canvas.addEventListener("click", event => {
+      if (!placing) return;
+      const point = getCanvasPoint(event);
+      addGalaxyAt(galaxySelect.value, point);
+    });
+
+    mode1dBtn.addEventListener("click", () => switchMode("1d"));
+    mode2dBtn.addEventListener("click", () => switchMode("2d"));
+
+    stretchSlider.addEventListener("input", () => {
+      stretchLabel.textContent = `${stretchSlider.value}%`;
+    });
+
+    stretchBtn.addEventListener("click", applyStretch);
+    undoStretchBtn.addEventListener("click", undoStretch);
+    autoPlaceBtn.addEventListener("click", autoPlaceSome);
+
+    measureBtn.addEventListener("click", makeMeasurement);
+
+    clearMeasureBtn.addEventListener("click", () => {
+      selectedMeasurement = null;
+      measurementReadout.textContent = getState().galaxies.length < 2
+        ? "Add at least two galaxies to measure."
+        : "Measurement cleared.";
+      draw();
+    });
+
+    resetModeBtn.addEventListener("click", resetMode);
+    resetAllBtn.addEventListener("click", resetAll);
+
+    window.addEventListener("resize", () => {
+      draw();
+    });
+
+    updateUI();
+  </script>
+</body>
+</html>
