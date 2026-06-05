@@ -227,6 +227,42 @@
       pointer-events: none;
     }
 
+    .measure-toolbar {
+      position: absolute;
+      z-index: 6;
+      right: 12px;
+      top: 72px;
+      width: 230px;
+      padding: 12px;
+      background: rgba(255,255,255,0.93);
+      border: 1px solid rgba(23,32,51,0.14);
+      border-radius: 16px;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.14);
+    }
+
+    .measure-toolbar h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .measure-toolbar .row {
+      gap: 7px;
+    }
+
+    .measure-toolbar button {
+      padding: 9px 8px;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 900px) {
+      .measure-toolbar {
+        position: static;
+        width: auto;
+        margin: 10px;
+      }
+    }
+
     .badge {
       background: rgba(255,255,255,0.88);
       border: 1px solid rgba(23,32,51,0.14);
@@ -371,20 +407,6 @@
       </div>
 
       <div class="control-block">
-        <h2>Measure Distance</h2>
-        <div class="row">
-          <button id="measureBtn" class="primary">Start Measuring</button>
-          <button id="clearMeasure">Clear</button>
-        </div>
-        <p class="small-note">
-          Click one galaxy, then click another galaxy. The distance will appear here and on the universe.
-        </p>
-        <div class="measurement-readout" id="measurementReadout" style="margin-top:10px;">
-          Add at least two galaxies to measure.
-        </div>
-      </div>
-
-      <div class="control-block">
         <h2>Reset</h2>
         <div class="row">
           <button id="resetMode" class="warn">Reset This Mode</button>
@@ -409,6 +431,21 @@
         <div class="badge" id="scaleBadge">Universe scale: 1.00×</div>
         <div class="badge" id="countBadge">Galaxies: 0</div>
       </div>
+
+      <div class="measure-toolbar">
+        <h2>Measure Distance</h2>
+        <div class="row">
+          <button id="measureBtn" class="primary">Start Measuring</button>
+          <button id="clearMeasure">Clear</button>
+        </div>
+        <p class="small-note">
+          Click one galaxy, then another.
+        </p>
+        <div class="measurement-readout" id="measurementReadout" style="margin-top:10px;">
+          Add at least two galaxies to measure.
+        </div>
+      </div>
+
       <canvas id="universeCanvas" width="1100" height="660"></canvas>
     </section>
   </main>
@@ -825,10 +862,10 @@
       const midY = (a.y + b.y) / 2;
       const dist = distanceBetween(gA, gB);
 
-      ctx.font = "900 16px system-ui";
+      ctx.font = "900 17px system-ui";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 7;
       ctx.strokeStyle = "white";
       ctx.strokeText(`${dist.toFixed(1)} space units`, midX, midY - 18);
       ctx.fillText(`${dist.toFixed(1)} space units`, midX, midY - 18);
@@ -846,9 +883,10 @@
         draw2DUniverse();
       }
 
-      drawMeasurement();
-
       getState().galaxies.forEach(drawGalaxy);
+
+      // Draw measurement last so the line and numbers appear over the galaxies.
+      drawMeasurement();
     }
 
     function canPlace1D(point) {
