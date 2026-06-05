@@ -66,7 +66,7 @@
     .panel {
       background: rgba(255,255,255,0.94);
       border: 1px solid rgba(23,32,51,0.12);
-      border-: var(--);
+      border-radius: var(--radius);
       box-shadow: var(--shadow);
     }
 
@@ -80,7 +80,7 @@
     .control-block {
       padding: 12px;
       border: 1px solid rgba(23,32,51,0.10);
-      border-: 14px;
+      border-radius: 14px;
       background: #fbfdff;
     }
 
@@ -102,7 +102,7 @@
 
     button {
       border: 0;
-      border-: 12px;
+      border-radius: 12px;
       padding: 10px 11px;
       background: #e8eef8;
       color: var(--ink);
@@ -372,14 +372,13 @@
 
       <div class="control-block">
         <h2>Measure Distance</h2>
-        <label for="measureA">Galaxy A</label>
-        <select id="measureA"></select>
-        <label for="measureB" style="margin-top:8px;">Galaxy B</label>
-        <select id="measureB"></select>
-        <div class="row" style="margin-top:8px;">
-          <button id="measureBtn" class="primary">Measure</button>
+        <div class="row">
+          <button id="measureBtn" class="primary">Start Measuring</button>
           <button id="clearMeasure">Clear</button>
         </div>
+        <p class="small-note">
+          Click one galaxy, then click another galaxy. The distance will appear here and on the universe.
+        </p>
         <div class="measurement-readout" id="measurementReadout" style="margin-top:10px;">
           Add at least two galaxies to measure.
         </div>
@@ -430,8 +429,6 @@
     const stretchBtn = document.getElementById("stretchBtn");
     const undoStretchBtn = document.getElementById("undoStretch");
 
-    const measureA = document.getElementById("measureA");
-    const measureB = document.getElementById("measureB");
     const measureBtn = document.getElementById("measureBtn");
     const clearMeasureBtn = document.getElementById("clearMeasure");
     const measurementReadout = document.getElementById("measurementReadout");
@@ -460,6 +457,8 @@
 
     let currentMode = "1d";
     let selectedMeasurement = null;
+    let measuringMode = false;
+    let firstMeasuredGalaxy = null;
 
     const states = {
       "1d": {
@@ -507,7 +506,7 @@
       return {
         centerX: canvas.width / 2,
         centerY: canvas.height / 2 + 20,
-        radius: 120
+        radius: 100
       };
     }
 
@@ -567,37 +566,15 @@
       });
     }
 
-    function updateMeasureDropdowns() {
+    function updateMeasureControls() {
       const galaxies = getState().galaxies;
-      [measureA, measureB].forEach(select => {
-        const oldValue = select.value;
-        select.innerHTML = "";
-
-        if (galaxies.length === 0) {
-          const opt = document.createElement("option");
-          opt.value = "";
-          opt.textContent = "No galaxies yet";
-          select.appendChild(opt);
-          select.disabled = true;
-        } else {
-          select.disabled = false;
-          galaxies.forEach(galaxy => {
-            const opt = document.createElement("option");
-            opt.value = galaxy.name;
-            opt.textContent = galaxy.name;
-            select.appendChild(opt);
-          });
-          if (galaxies.some(g => g.name === oldValue)) {
-            select.value = oldValue;
-          }
-        }
-      });
-
-      if (galaxies.length >= 2 && measureA.value === measureB.value) {
-        measureB.selectedIndex = 1;
-      }
-
       measureBtn.disabled = galaxies.length < 2;
+
+      if (galaxies.length < 2) {
+        measuringMode = false;
+        firstMeasuredGalaxy = null;
+        measureBtn.textContent = "Start Measuring";
+      }
     }
 
     function updateBadges() {
@@ -615,7 +592,7 @@
         : "2D mode: galaxies attach to locations on the black space circle.";
 
       updateGalaxyList();
-      updateMeasureDropdowns();
+      updateMeasureControls();
       updateBadges();
 
       if (getState().galaxies.length < 2) {
@@ -676,6 +653,22 @@
 
     function findGalaxy(name) {
       return getState().galaxies.find(g => g.name === name);
+    }
+
+    function galaxyAtPoint(point) {
+      const galaxies = getState().galaxies;
+
+      for (let i = galaxies.length - 1; i >= 0; i--) {
+        const galaxy = galaxies[i];
+        const p = positionOf(galaxy);
+        const hitRadius = 22;
+
+        if (Math.hypot(point.x - p.x, point.y - p.y) <= hitRadius) {
+          return galaxy;
+        }
+      }
+
+      return null;
     }
 
     function drawBackgroundHints() {
@@ -760,6 +753,14 @@
       const radius = 15;
 
       ctx.save();
+
+      if (firstMeasuredGalaxy && firstMeasuredGalaxy.name === galaxy.name) {
+        ctx.strokeStyle = "#e11d48";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius + 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       const gradient = ctx.createRadialGradient(p.x - 5, p.y - 6, 2, p.x, p.y, radius + 2);
       gradient.addColorStop(0, "#fff9b1");
@@ -931,17 +932,14 @@
       return pixelDistance / 10;
     }
 
-    function makeMeasurement() {
-      if (measureA.value === measureB.value) {
-        measurementReadout.textContent = "Choose two different galaxies.";
+    function finishMeasurement(gA, gB) {
+      if (!gA || !gB) {
+        measurementReadout.textContent = "Click directly on a galaxy.";
         return;
       }
 
-      const gA = findGalaxy(measureA.value);
-      const gB = findGalaxy(measureB.value);
-
-      if (!gA || !gB) {
-        measurementReadout.textContent = "Add at least two galaxies to measure.";
+      if (gA.name === gB.name) {
+        measurementReadout.textContent = "That is the same galaxy. Click a different galaxy for the second point.";
         return;
       }
 
@@ -950,9 +948,32 @@
         b: gB.name
       };
 
+      measuringMode = false;
+      firstMeasuredGalaxy = null;
+      measureBtn.textContent = "Start Measuring";
+
       const dist = distanceBetween(gA, gB);
       measurementReadout.textContent = `${gA.name} to ${gB.name}: ${dist.toFixed(1)} space units at ${getState().scale.toFixed(2)}× scale.`;
       draw();
+    }
+
+    function handleMeasurementClick(point) {
+      const clickedGalaxy = galaxyAtPoint(point);
+
+      if (!clickedGalaxy) {
+        measurementReadout.textContent = "Click directly on a galaxy to measure.";
+        return true;
+      }
+
+      if (!firstMeasuredGalaxy) {
+        firstMeasuredGalaxy = clickedGalaxy;
+        measurementReadout.textContent = `First galaxy: ${clickedGalaxy.name}. Now click a second galaxy.`;
+        draw();
+        return true;
+      }
+
+      finishMeasurement(firstMeasuredGalaxy, clickedGalaxy);
+      return true;
     }
 
     function applyStretch() {
@@ -981,7 +1002,9 @@
       updateUI();
 
       if (selectedMeasurement) {
-        makeMeasurement();
+        const gA = findGalaxy(selectedMeasurement.a);
+        const gB = findGalaxy(selectedMeasurement.b);
+        if (gA && gB) finishMeasurement(gA, gB);
       }
     }
 
@@ -996,7 +1019,9 @@
       updateUI();
 
       if (selectedMeasurement) {
-        makeMeasurement();
+        const gA = findGalaxy(selectedMeasurement.a);
+        const gB = findGalaxy(selectedMeasurement.b);
+        if (gA && gB) finishMeasurement(gA, gB);
       }
     }
 
@@ -1042,6 +1067,8 @@
         galaxies: []
       };
       selectedMeasurement = null;
+      measuringMode = false;
+      firstMeasuredGalaxy = null;
       setStatus(`${currentMode === "1d" ? "1D bungee" : "2D space"} mode reset.`);
       updateUI();
     }
@@ -1050,6 +1077,8 @@
       states["1d"] = { scale: 1, history: [], galaxies: [] };
       states["2d"] = { scale: 1, history: [], galaxies: [] };
       selectedMeasurement = null;
+      measuringMode = false;
+      firstMeasuredGalaxy = null;
       setStatus("Both universe modes were reset.");
       updateUI();
     }
@@ -1057,6 +1086,9 @@
     function switchMode(mode) {
       currentMode = mode;
       selectedMeasurement = null;
+      measuringMode = false;
+      firstMeasuredGalaxy = null;
+      measureBtn.textContent = "Start Measuring";
       setStatus(
         mode === "1d"
           ? "1D bungee mode. Click the black line to add a random galaxy."
@@ -1067,6 +1099,12 @@
 
     canvas.addEventListener("click", event => {
       const point = getCanvasPoint(event);
+
+      if (measuringMode) {
+        handleMeasurementClick(point);
+        return;
+      }
+
       const name = randomAvailableGalaxyName();
       addGalaxyAt(name, point);
     });
@@ -1082,10 +1120,26 @@
     undoStretchBtn.addEventListener("click", undoStretch);
     autoPlaceBtn.addEventListener("click", autoPlaceSome);
 
-    measureBtn.addEventListener("click", makeMeasurement);
+    measureBtn.addEventListener("click", () => {
+      if (getState().galaxies.length < 2) {
+        measurementReadout.textContent = "Add at least two galaxies to measure.";
+        return;
+      }
+
+      measuringMode = true;
+      firstMeasuredGalaxy = null;
+      selectedMeasurement = null;
+      measureBtn.textContent = "Measuring...";
+      measurementReadout.textContent = "Click the first galaxy.";
+      setStatus("Measurement mode: click one galaxy, then another galaxy.");
+      draw();
+    });
 
     clearMeasureBtn.addEventListener("click", () => {
       selectedMeasurement = null;
+      measuringMode = false;
+      firstMeasuredGalaxy = null;
+      measureBtn.textContent = "Start Measuring";
       measurementReadout.textContent = getState().galaxies.length < 2
         ? "Add at least two galaxies to measure."
         : "Measurement cleared.";
