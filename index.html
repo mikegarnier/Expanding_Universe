@@ -350,14 +350,9 @@
 
       <div class="control-block">
         <h2>Add Galaxies</h2>
-        <label for="galaxySelect">Choose a galaxy tag</label>
-        <select id="galaxySelect"></select>
-        <div class="row" style="margin-top:8px;">
-          <button id="addGalaxy" class="primary">Place Selected Galaxy</button>
-          <button id="autoPlace" class="good">Auto Place 5</button>
-        </div>
+        <button id="autoPlace" class="good" style="width:100%;">Auto Place 5</button>
         <p class="small-note">
-          Click the bungee line or the black space circle after pressing “Place Selected Galaxy.”
+          Click directly on the black bungee line or inside the black space circle to add a randomly named galaxy.
         </p>
         <div class="galaxy-list" id="galaxyList"></div>
       </div>
@@ -406,7 +401,7 @@
       </div>
 
       <div class="status" id="status">
-        Choose a galaxy tag, press “Place Selected Galaxy,” then click on the universe.
+        Click the black bungee line or the black space circle to add a randomly named galaxy.
       </div>
     </section>
 
@@ -427,8 +422,6 @@
     const mode2dBtn = document.getElementById("mode2d");
     const modeHelp = document.getElementById("modeHelp");
 
-    const galaxySelect = document.getElementById("galaxySelect");
-    const addGalaxyBtn = document.getElementById("addGalaxy");
     const autoPlaceBtn = document.getElementById("autoPlace");
     const galaxyList = document.getElementById("galaxyList");
 
@@ -466,7 +459,6 @@
     ];
 
     let currentMode = "1d";
-    let placing = false;
     let selectedMeasurement = null;
 
     const states = {
@@ -487,14 +479,26 @@
     }
 
     function base1D() {
-      const marginX = canvas.width * 0.36;
-      const marginY = canvas.height * 0.5;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2 + 20;
+
+      // This controls the starting size of the 1D bungee.
+      // 0.30 means it starts at about 30% of the previous full diagonal length.
+      const lengthScale = 0.30;
+
+      const oldStartX = canvas.width * 0.18;
+      const oldStartY = canvas.height * 0.75;
+      const oldEndX = canvas.width * 0.82;
+      const oldEndY = canvas.height * 0.25;
+
+      const dx = (oldEndX - oldStartX) * lengthScale;
+      const dy = (oldEndY - oldStartY) * lengthScale;
 
       return {
-        startX: marginX,
-        startY: canvas.height - marginY,
-        endX: canvas.width - marginX,
-        endY: marginY,
+        startX: centerX - dx / 2,
+        startY: centerY - dy / 2,
+        endX: centerX + dx / 2,
+        endY: centerY + dy / 2,
         thickness: 18
       };
     }
@@ -544,27 +548,11 @@
       return galaxyNames.filter(name => !used.has(name));
     }
 
-    function updateGalaxySelect() {
+    function randomAvailableGalaxyName() {
       const available = availableNames();
-      galaxySelect.innerHTML = "";
-
-      if (available.length === 0) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "All galaxy tags placed";
-        galaxySelect.appendChild(opt);
-        galaxySelect.disabled = true;
-        addGalaxyBtn.disabled = true;
-      } else {
-        galaxySelect.disabled = false;
-        addGalaxyBtn.disabled = false;
-        available.forEach(name => {
-          const opt = document.createElement("option");
-          opt.value = name;
-          opt.textContent = name;
-          galaxySelect.appendChild(opt);
-        });
-      }
+      if (available.length === 0) return "";
+      const index = Math.floor(Math.random() * available.length);
+      return available[index];
     }
 
     function updateGalaxyList() {
@@ -626,7 +614,6 @@
         ? "1D mode: galaxies snap onto the black bungee line."
         : "2D mode: galaxies attach to locations on the black space circle.";
 
-      updateGalaxySelect();
       updateGalaxyList();
       updateMeasureDropdowns();
       updateBadges();
@@ -887,7 +874,12 @@
     function addGalaxyAt(name, point) {
       const state = getState();
 
-      if (!name || state.galaxies.some(g => g.name === name)) return false;
+      if (!name) {
+        setStatus("All galaxy tags have already been placed. Reset this mode to start again.");
+        return false;
+      }
+
+      if (state.galaxies.some(g => g.name === name)) return false;
 
       if (currentMode === "1d") {
         if (!canPlace1D(point)) {
@@ -922,7 +914,6 @@
         });
       }
 
-      placing = false;
       selectedMeasurement = null;
       setStatus(`${name} was added. Add more galaxies, stretch space, or measure a distance.`);
       updateUI();
@@ -1051,7 +1042,6 @@
         galaxies: []
       };
       selectedMeasurement = null;
-      placing = false;
       setStatus(`${currentMode === "1d" ? "1D bungee" : "2D space"} mode reset.`);
       updateUI();
     }
@@ -1060,33 +1050,25 @@
       states["1d"] = { scale: 1, history: [], galaxies: [] };
       states["2d"] = { scale: 1, history: [], galaxies: [] };
       selectedMeasurement = null;
-      placing = false;
       setStatus("Both universe modes were reset.");
       updateUI();
     }
 
     function switchMode(mode) {
       currentMode = mode;
-      placing = false;
       selectedMeasurement = null;
       setStatus(
         mode === "1d"
-          ? "1D bungee mode. Place galaxies on the black line."
-          : "2D space mode. Place galaxies inside the black circle."
+          ? "1D bungee mode. Click the black line to add a random galaxy."
+          : "2D space mode. Click inside the black circle to add a random galaxy."
       );
       updateUI();
     }
 
-    addGalaxyBtn.addEventListener("click", () => {
-      if (!galaxySelect.value) return;
-      placing = true;
-      setStatus(`Click the ${currentMode === "1d" ? "black bungee line" : "black space circle"} to place ${galaxySelect.value}.`);
-    });
-
     canvas.addEventListener("click", event => {
-      if (!placing) return;
       const point = getCanvasPoint(event);
-      addGalaxyAt(galaxySelect.value, point);
+      const name = randomAvailableGalaxyName();
+      addGalaxyAt(name, point);
     });
 
     mode1dBtn.addEventListener("click", () => switchMode("1d"));
